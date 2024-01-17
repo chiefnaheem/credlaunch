@@ -5,7 +5,14 @@ import { generateRandomAlphanumeric } from 'src/common/functions/common';
 import { User } from 'src/user/entities/user.entity';
 import { Wallet } from 'src/wallet/entities/wallet.entity';
 import { WalletService } from 'src/wallet/services/wallet.service';
-import { Repository, LessThanOrEqual, MoreThanOrEqual, Between } from 'typeorm';
+import {
+  Repository,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Between,
+  EntityManager,
+  getManager,
+} from 'typeorm';
 import { Transaction } from '../entities/transaction.entity';
 import { TransactionStatus } from '../enum/transaction.enum';
 
@@ -18,10 +25,84 @@ export class TransactionService {
     private readonly walletService: WalletService,
   ) {}
 
+  // async createTransaction(
+  //   transaction: Partial<Transaction>,
+  //   user: string,
+  // ): Promise<Transaction> {
+  //   try {
+  //     const { senderWallet, receiverAccountNumber, amount } = transaction;
+
+  //     const [senderWalletDetails, receiverWalletDetails] = await Promise.all([
+  //       this.walletService.findOneWalletById(senderWallet),
+  //       this.walletService.findWalletByAccountNumber(receiverAccountNumber),
+  //     ]);
+
+  //     const sender = senderWalletDetails.user as unknown as User;
+  //     const receiver = receiverWalletDetails.user as unknown as User;
+
+  //     if (!senderWalletDetails || !receiverWalletDetails) {
+  //       throw new BadRequestException('Invalid wallet details');
+  //     }
+
+  //     if (sender.id === receiver.id) {
+  //       throw new BadRequestException(
+  //         'Sender and receiver wallets cannot be the same',
+  //       );
+  //     }
+
+  //     if (senderWalletDetails.currency !== receiverWalletDetails.currency) {
+  //       throw new BadRequestException(
+  //         'Sender and receiver wallets must be of the same currency',
+  //       );
+  //     }
+
+  //     if (senderWalletDetails.isLocked) {
+  //       throw new BadRequestException('Possible duplicate transaction');
+  //     }
+
+  //     if (senderWalletDetails.balance < amount) {
+  //       throw new BadRequestException('Insufficient funds');
+  //     }
+
+  //     const updatedSenderWallet = await this.walletService.updateWallet(
+  //       senderWallet,
+  //       { isLocked: true },
+  //     );
+
+  //     const newTransaction =
+  //       await this.transactionRepository.manager.transaction(
+  //         async (transactionalEntityManager) => {
+  //           const createdTransaction = this.transactionRepository.create({
+  //             ...transaction,
+  //             createdBy: user,
+  //             senderBalance: updatedSenderWallet.balance - amount,
+  //             receiverBalance: receiverWalletDetails.balance + amount,
+  //             status: TransactionStatus.PENDING,
+  //             currency: senderWalletDetails.currency,
+  //             receiverWallet: receiverWalletDetails.id,
+  //           });
+
+  //           await transactionalEntityManager
+  //             .getRepository(Transaction)
+  //             .save(createdTransaction);
+
+  //           return createdTransaction;
+  //         },
+  //       );
+  //     return newTransaction;
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     throw error;
+  //   }
+  // }
+
   async createTransaction(
     transaction: Partial<Transaction>,
     user: string,
   ): Promise<Transaction> {
+    const transactionalEntityManager: EntityManager = getManager();
+    let createdTransaction: Transaction;
+
     try {
       const { senderWallet, receiverAccountNumber, amount } = transaction;
 
@@ -57,32 +138,35 @@ export class TransactionService {
         throw new BadRequestException('Insufficient funds');
       }
 
-      const updatedSenderWallet = await this.walletService.updateWallet(
-        senderWallet,
-        { isLocked: true },
+      // Start the transaction
+      await transactionalEntityManager.transaction(
+        async (transactionalEntityManager) => {
+          // Update sender wallet
+          const updatedSenderWallet = await this.walletService.updateWallet(
+            senderWallet,
+            { isLocked: true },
+            transactionalEntityManager,
+          );
+
+          // Create new transaction
+          createdTransaction = this.transactionRepository.create({
+            ...transaction,
+            createdBy: user,
+            senderBalance: updatedSenderWallet.balance - amount,
+            receiverBalance: receiverWalletDetails.balance + amount,
+            status: TransactionStatus.PENDING,
+            currency: senderWalletDetails.currency,
+            receiverWallet: receiverWalletDetails.id,
+          });
+
+          await transactionalEntityManager.save(
+            Transaction,
+            createdTransaction,
+          );
+        },
       );
 
-      const newTransaction =
-        await this.transactionRepository.manager.transaction(
-          async (transactionalEntityManager) => {
-            const createdTransaction = this.transactionRepository.create({
-              ...transaction,
-              createdBy: user,
-              senderBalance: updatedSenderWallet.balance - amount,
-              receiverBalance: receiverWalletDetails.balance + amount,
-              status: TransactionStatus.PENDING,
-              currency: senderWalletDetails.currency,
-              receiverWallet: receiverWalletDetails.id,
-            });
-
-            await transactionalEntityManager
-              .getRepository(Transaction)
-              .save(createdTransaction);
-
-            return createdTransaction;
-          },
-        );
-      return newTransaction;
+      return createdTransaction;
     } catch (error) {
       this.logger.error(error);
       throw error;

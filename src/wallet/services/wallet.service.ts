@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { HttpServices } from 'src/common/http/http.service';
 import { UserService } from 'src/user/service/user.service';
-import { Repository } from 'typeorm';
+import { EntityManager, getManager, Repository } from 'typeorm';
 import { Wallet } from '../entities/wallet.entity';
 
 @Injectable()
@@ -46,18 +46,42 @@ export class WalletService {
     }
   }
 
-  async updateWallet(id: string, wallet: Partial<Wallet>): Promise<Wallet> {
+  // async updateWallet(id: string, wallet: Partial<Wallet>): Promise<Wallet> {
+  //   try {
+  //     this.logger.debug(`Updating wallet with id ${id}`);
+  //     const existingWallet = await this.walletRepository.findOne(id);
+
+  //     if (!existingWallet) {
+  //       throw new BadRequestException('Wallet does not exist');
+  //     }
+
+  //     const updatedWallet = this.walletRepository.merge(existingWallet, wallet);
+
+  //     return await this.walletRepository.save(updatedWallet);
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     throw error;
+  //   }
+  // }
+
+  async updateWallet(
+    id: string,
+    wallet: Partial<Wallet>,
+    transactionalEntityManager?: EntityManager,
+  ): Promise<Partial<Wallet>> {
     try {
       this.logger.debug(`Updating wallet with id ${id}`);
-      const existingWallet = await this.walletRepository.findOne(id);
+      const entityManager = transactionalEntityManager || getManager();
+
+      const existingWallet = await entityManager.findOne(Wallet, id);
 
       if (!existingWallet) {
         throw new BadRequestException('Wallet does not exist');
       }
 
-      const updatedWallet = this.walletRepository.merge(existingWallet, wallet);
+      const updatedWallet = entityManager.merge(Wallet, existingWallet, wallet);
 
-      return await this.walletRepository.save(updatedWallet);
+      return await entityManager.save(updatedWallet);
     } catch (error) {
       this.logger.error(error);
       throw error;
@@ -118,22 +142,53 @@ export class WalletService {
     }
   }
 
+  // async updateWalletByUserAndCurrency(
+  //   user: string,
+  //   currency: string,
+  //   amount: number,
+  // ): Promise<Wallet> {
+  //   try {
+  //     this.logger.debug(`Finding wallet with user ${user}`);
+  //     const wallet = await this.walletRepository.findOne({
+  //       where: {
+  //         user,
+  //         currency,
+  //       },
+  //     });
+  //     wallet.balance = wallet.balance + amount;
+
+  //     return await this.walletRepository.save(wallet);
+  //   } catch (error) {
+  //     this.logger.error(error);
+  //     throw error;
+  //   }
+  // }
+
   async updateWalletByUserAndCurrency(
     user: string,
     currency: string,
     amount: number,
+    transactionalEntityManager?: EntityManager,
   ): Promise<Wallet> {
     try {
       this.logger.debug(`Finding wallet with user ${user}`);
-      const wallet = await this.walletRepository.findOne({
+
+      const entityManager = transactionalEntityManager || getManager();
+
+      const wallet = await entityManager.findOne(Wallet, {
         where: {
           user,
           currency,
         },
       });
+
+      if (!wallet) {
+        throw new BadRequestException('Wallet not found');
+      }
+
       wallet.balance = wallet.balance + amount;
 
-      return await this.walletRepository.save(wallet);
+      return await entityManager.save(wallet);
     } catch (error) {
       this.logger.error(error);
       throw error;
