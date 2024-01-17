@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpStatus,
   Param,
@@ -23,6 +24,7 @@ import {
 } from '../dto/wallet.dto';
 import { WalletService } from '../services/wallet.service';
 import { WalletEvent } from '../enum/wallet.enum';
+import { WalletGuard } from '../guards/wallet.guard';
 
 @ApiTags('Wallet')
 @ApiBearerAuth('Bearer')
@@ -51,7 +53,6 @@ export class WalletController {
     };
   }
 
-
   @Get('find-wallet/:id')
   async findWallet(@Param('id', ParseUUIDPipe) id: string): Promise<IResponse> {
     const wallet = await this.walletService.findOneWalletById(id);
@@ -72,6 +73,19 @@ export class WalletController {
       statusCode: HttpStatus.OK,
       message: 'Wallets fetched successfully',
       data: wallets,
+    };
+  }
+
+  @UseGuards(WalletGuard)
+  @Delete('delete-wallet/:id')
+  async deleteWallet(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<IResponse> {
+    const wallet = await this.walletService.deleteWallet(id);
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Wallets deleted successfully',
+      data: wallet,
     };
   }
 
@@ -96,7 +110,9 @@ export class WalletController {
   async verifyTransaction(
     @Body() body: VerifyTransactionDto,
   ): Promise<IResponse> {
-    const res = await this.walletService.verifyTransaction(body.reference) as any;
+    const res = (await this.walletService.verifyTransaction(
+      body.reference,
+    )) as any;
     if (res.status === true && res.data.status === 'success') {
       this.eventEmitter.emit(WalletEvent.WALLET_FUNDED, res.data);
     }

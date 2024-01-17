@@ -174,4 +174,33 @@ export class WalletService {
       throw error;
     }
   }
+
+  async deleteWallet(id: string): Promise<boolean> {
+    try {
+      this.logger.debug(`Deleting wallet with id ${id}`);
+      const wallet = await this.walletRepository.findOne({
+        where: {
+          id,
+        },
+      });
+
+      if (!wallet) {
+        throw new BadRequestException('Wallet does not exist');
+      }
+
+      if (wallet.balance !== 0) {
+        throw new BadRequestException(
+          'Cannot delete wallet with non-zero balance',
+        );
+      }
+
+      // Delete the wallet
+      await this.walletRepository.delete(id);
+
+      return true;
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
 }
