@@ -101,7 +101,7 @@ export class WalletController {
     );
     return {
       statusCode: HttpStatus.OK,
-      message: 'Wallet funded successfully',
+      message: 'Wallet funding intialized successfully',
       data: res,
     };
   }

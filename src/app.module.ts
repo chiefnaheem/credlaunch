@@ -25,7 +25,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
         {
           name: 'short',
           ttl: 5000,
-          limit: 3,
+          limit: 1,
         },
         {
           name: 'medium',

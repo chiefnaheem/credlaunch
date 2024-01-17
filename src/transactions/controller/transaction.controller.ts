@@ -19,6 +19,7 @@ import { IResponse } from 'src/common/interface/response.interface';
 import { User } from 'src/user/entities/user.entity';
 import { TransactionDto } from '../dto/transaction.dto';
 import { TransactionEvent } from '../enum/transaction.enum';
+import { TransferGuard } from '../gaurds/transaction.guard';
 import { TransactionService } from '../services/transaction.service';
 
 @ApiTags('Transaction')
@@ -32,7 +33,7 @@ export class TransactionController {
   ) {}
 
   @ApiBody({ type: TransactionDto, required: true })
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ThrottlerGuard, TransferGuard)
   @Post('transfer')
   async createTransaction(
     @Body() body: TransactionDto,
