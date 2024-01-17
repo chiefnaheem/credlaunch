@@ -29,28 +29,30 @@
 ## Installation
 
 ```bash
-$ yarn install
+$ yarn
 ```
 
 ## Running the app
+
 ```bash
 $ create a .env file in the project directory
-$ copy the enviromental variables in .env.sample file into it. 
+$ copy the enviromental variables in .env.sample file into it.
 $ Assign the variables correctly and all is set.
 ```
 
 ```bash
 # development
-$ yarn run start
+$ yarn start
 
 # watch mode
-$ yarn run start:dev
+$ yarn start:dev
 
 # production mode
-$ yarn run start:prod
+$ yarn start:prod
 ```
 
 ## Documentation
+
 $ swagger documentation can be found on {HOST_URL}/docs
 
 ## Test
