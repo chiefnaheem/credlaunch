@@ -69,7 +69,7 @@ export class TransactionController {
     this.eventEmitter.emit(TransactionEvent.TRANSACTION_FAILED, transaction);
     return {
       statusCode: 200,
-      message: 'Refund requested successfully',
+      message: 'Refund successful',
       data: transaction,
     };
   }
