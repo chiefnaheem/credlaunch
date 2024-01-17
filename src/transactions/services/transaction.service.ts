@@ -12,6 +12,7 @@ import {
   Between,
   EntityManager,
   getManager,
+  In,
 } from 'typeorm';
 import { Transaction } from '../entities/transaction.entity';
 import { TransactionStatus } from '../enum/transaction.enum';
@@ -196,7 +197,13 @@ export class TransactionService {
   async getTransactionsToApprove(): Promise<Transaction[]> {
     try {
       const transactions = await this.transactionRepository.find({
-        where: { status: TransactionStatus.REQUIRES_ACTION },
+        where: {
+          status: In([
+            TransactionStatus.REQUIRES_ACTION,
+            TransactionStatus.REQUEST_REFUND,
+            TransactionStatus.FAILED,
+          ]),
+        },
       });
       return transactions;
     } catch (error) {
@@ -236,6 +243,51 @@ export class TransactionService {
     }
   }
 
+  async refundTransaction(id: string): Promise<Transaction> {
+    try {
+      const transactionDetails = await this.transactionRepository.findOne({
+        where: {
+          id,
+          status: In([
+            TransactionStatus.REQUEST_REFUND,
+            TransactionStatus.FAILED,
+          ]),
+        },
+        relations: ['senderWallet', 'receiverWallet'],
+      });
+      if (!transactionDetails) {
+        throw new BadRequestException('Invalid transaction');
+      }
+
+      const reference = generateRandomAlphanumeric(10);
+
+      const receiverWallet =
+        transactionDetails.receiverWallet as unknown as Wallet;
+
+      const senderWallet = transactionDetails.senderWallet as unknown as Wallet;
+
+      // await this.walletService.updateWallet(receiverWallet.id, {
+      //   balance: receiverWallet.balance - transactionDetails.amount,
+      // });
+
+      await this.walletService.updateWallet(senderWallet.id, {
+        balance: receiverWallet.balance + transactionDetails.amount,
+      });
+
+      await this.updateTransaction(id, {
+        status: TransactionStatus.REFUNDED,
+        receiverBalance: receiverWallet.balance - transactionDetails.amount,
+        senderBalance: senderWallet.balance + transactionDetails.amount,
+        reference,
+      });
+
+      return transactionDetails;
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
   async getMonthlyTransactions(dateStr?: string): Promise<Transaction[]> {
     try {
       let startDate: Date;
@@ -264,6 +316,15 @@ export class TransactionService {
       });
 
       return transactions;
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  async getTransactionById(id: string): Promise<Transaction> {
+    try {
+      return await this.transactionRepository.findOne(id);
     } catch (error) {
       this.logger.error(error);
       throw error;

@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UserRole } from 'src/user/enum/user.enum';
 import { UserService } from 'src/user/service/user.service';
@@ -19,7 +20,10 @@ export class AdminGuard implements CanActivate {
       if (adminExists && user.role === UserRole.ADMIN) {
         return true;
       }
-      return false;
+      // return false;
+      throw new UnauthorizedException(
+        'You are not authorized to perform this activity',
+      );
     } catch (error) {
       this.logger.error(error);
       throw error;

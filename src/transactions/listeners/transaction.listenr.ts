@@ -19,7 +19,7 @@ export class TransactionListener {
   @OnEvent(TransactionEvent.TRANSACTION_CREATED)
   async handleTransactionCreatedEvent(event: any): Promise<void> {
     try {
-        this.logger.debug(`Transaction created ${JSON.stringify(event)}`);
+      this.logger.debug(`Transaction created ${JSON.stringify(event)}`);
       const [senderWalletDetails, receiverWalletDetails] = await Promise.all([
         this.walletService.findOneWalletById(event.senderWallet),
         this.walletService.findOneWalletById(event.receiverWallet),
@@ -97,4 +97,14 @@ export class TransactionListener {
     });
   }
 
+  @OnEvent(TransactionEvent.TRANSACTION_FAILED)
+  async handleTransactionFailedEvent(event: any): Promise<void> {
+    try {
+      this.logger.debug(`Transaction created ${JSON.stringify(event)}`);
+      await this.transactionService.refundTransaction(event.id);
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
 }

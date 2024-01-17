@@ -18,7 +18,7 @@ import { AdminGuard } from 'src/common/guards/admin.guard';
 import { IResponse } from 'src/common/interface/response.interface';
 import { User } from 'src/user/entities/user.entity';
 import { TransactionDto } from '../dto/transaction.dto';
-import { TransactionEvent } from '../enum/transaction.enum';
+import { TransactionEvent, TransactionStatus } from '../enum/transaction.enum';
 import { TransferGuard } from '../gaurds/transaction.guard';
 import { TransactionService } from '../services/transaction.service';
 
@@ -54,6 +54,36 @@ export class TransactionController {
     return {
       statusCode: 200,
       message,
+      data: transaction,
+    };
+  }
+
+  @Post('fail-transaction/:id')
+  @UseGuards(AdminGuard)
+  async failTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<IResponse> {
+    const transaction = await this.transactionService.updateTransaction(id, {
+      status: TransactionStatus.FAILED,
+    });
+    this.eventEmitter.emit(TransactionEvent.TRANSACTION_FAILED, transaction);
+    return {
+      statusCode: 200,
+      message: 'Refund requested successfully',
+      data: transaction,
+    };
+  }
+
+  @Post('request-refund/:id')
+  async requestRefund(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<IResponse> {
+    const transaction = await this.transactionService.updateTransaction(id, {
+      status: TransactionStatus.REQUEST_REFUND,
+    });
+    return {
+      statusCode: 200,
+      message: 'Refund requested successfully',
       data: transaction,
     };
   }
@@ -96,6 +126,18 @@ export class TransactionController {
     return {
       statusCode: 200,
       message: 'Transactions fetched successfully',
+      data: transactions,
+    };
+  }
+
+  @Get('single/:id')
+  async getTransactionById(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<IResponse> {
+    const transactions = await this.transactionService.getTransactionById(id);
+    return {
+      statusCode: 200,
+      message: 'Transaction fetched successfully',
       data: transactions,
     };
   }
